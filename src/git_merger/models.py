@@ -1,5 +1,34 @@
+"""Data models and schemas for git-merger."""
+
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Any, Optional
+
+
+class AgentState(Enum):
+    """Current stage of the merge-resolution workflow."""
+
+    IDLE = auto()
+    INGESTING = auto()
+    SYNTHESIZING = auto()
+    GENERATING_HARNESS = auto()
+    SANDBOX_EVALUATING = auto()
+    REPAIRING = auto()
+    SUCCESS = auto()
+    COMMITTED = auto()
+    ESCALATING_TO_HUMAN = auto()
+
+
+class SandboxStatus(Enum):
+    """Lifecycle status of a sandbox environment."""
+
+    PROVISIONING = "provisioning"
+    READY = "ready"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    TIMED_OUT = "timed_out"
+    DESTROYED = "destroyed"
 
 
 @dataclass
@@ -18,9 +47,9 @@ class FunctionChange:
     """Metadata about a changed function."""
 
     name: str
-    change_type: str
-    base_source: str | None
-    branch_source: str | None
+    change_type: str  # "added" | "removed" | "modified"
+    base_source: Optional[str]
+    branch_source: Optional[str]
     signature_changed: bool
     body_changed: bool
 
@@ -30,10 +59,10 @@ class BranchContext:
     """Full context for one side of the merge."""
 
     file_version: FileVersion
-    commit_log: list[str]
-    diff_from_base: str
+    commit_log: list[str]          # Commit messages since merge base
+    diff_from_base: str            # Unified diff from base
     changed_functions: list[FunctionChange]
-    full_diff_patch: str
+    full_diff_patch: str           # Raw patch content
 
 
 @dataclass
@@ -44,9 +73,19 @@ class MergeContext:
     base: FileVersion
     ours: BranchContext
     theirs: BranchContext
-    conflict_markers: str | None
+    conflict_markers: Optional[str]
     ast_diff_summary: dict[str, object]
     shared_changed_functions: list[str]
+
+
+@dataclass
+class BlastRadius:
+    """Functions and call chains affected by the merge."""
+
+    directly_changed: set[str]     # Functions whose AST differs from base
+    callers: dict[str, set[str]]   # {func_name: set of functions that call it}
+    affected: set[str]             # Union of directly_changed + transitive callers
+    unchanged: set[str]            # Functions NOT in affected set
 
 
 @dataclass
@@ -56,9 +95,9 @@ class SynthesisResult:
     candidate_code: str
     explanation: str
     confidence: float
-    per_function_provenance: dict[str, dict[str, str]]
+    per_function_provenance: dict[str, Any]
     model_used: str
-    token_usage: dict[str, int]
+    token_usage: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -122,7 +161,7 @@ class EvaluationVerdict:
     branch_a_preserved: bool
     branch_b_preserved: bool
     regression_detected: bool
-    raw_outputs: ParallelExecutionResult
+    raw_outputs: Optional[ParallelExecutionResult] = None
 
 
 @dataclass
@@ -134,21 +173,7 @@ class RepairAttempt:
     failure_report: EvaluationVerdict
     new_candidate: str
     new_explanation: str
-    token_usage: dict[str, int]
-
-
-class AgentState(Enum):
-    """Current stage of the merge-resolution workflow."""
-
-    IDLE = auto()
-    INGESTING = auto()
-    SYNTHESIZING = auto()
-    GENERATING_HARNESS = auto()
-    SANDBOX_EVALUATING = auto()
-    REPAIRING = auto()
-    SUCCESS = auto()
-    COMMITTED = auto()
-    ESCALATING_TO_HUMAN = auto()
+    token_usage: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -227,3 +252,20 @@ MODEL_ROUTES: dict[str, ModelRoute] = {
         json_mode=True,
     ),
 }
+
+
+@dataclass
+class ResolutionReport:
+    """Final resolution report output."""
+
+    status: str
+    final_candidate: Optional[str] = None
+    commit_sha: Optional[str] = None
+    provenance: dict[str, Any] = field(default_factory=dict)
+    repair_history: list[RepairAttempt] = field(default_factory=list)
+    total_iterations: int = 0
+    token_usage: dict[str, int] = field(default_factory=dict)
+    pr_body: str = ""
+    reason: Optional[str] = None
+    partial_candidate: Optional[str] = None
+    verdict: Optional[EvaluationVerdict] = None

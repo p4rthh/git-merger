@@ -12,9 +12,9 @@ class SandboxProvider(str, Enum):
 class Settings(BaseSettings):
 
     # API credentials
-    NEBIUS_API_KEY: str
-    CONTREE_AUTH_TOKEN: str
-    CONTREE_PROJECT_ID: str
+    NEBIUS_API_KEY: str = ""
+    CONTREE_AUTH_TOKEN: str = ""
+    CONTREE_PROJECT_ID: str = ""
 
     # Sandbox
     SANDBOX_PROVIDER: SandboxProvider = SandboxProvider.contree
@@ -31,8 +31,9 @@ class Settings(BaseSettings):
 
     # Read from environment, with .env as fallback
     model_config = SettingsConfigDict(
-        env_file=".env.example",
+        env_file=(".env", ".env.example"),
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
 
