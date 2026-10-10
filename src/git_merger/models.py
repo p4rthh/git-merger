@@ -104,6 +104,8 @@ class SynthesisResult:
 class TestHarness:
     """A differential test harness ready for sandbox execution."""
 
+    __test__ = False
+
     test_code: str
     conftest_code: str
     requirements: list[str]
