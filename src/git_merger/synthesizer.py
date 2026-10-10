@@ -5,6 +5,7 @@ from openai import OpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
 from git_merger.models import MergeContext, SynthesisResult
+from git_merger.ingester import ContextIngester
 
 
 class ProvenanceInfo(BaseModel):
@@ -169,14 +170,15 @@ class SemanticSynthesizer:
             model_used=self.model,
             token_usage=self.last_token_usage.copy(),
         )
+ingester = ContextIngester(repo_path="path/to/repo")
 
-    context = ingester.ingest(
+synthesizer = SemanticSynthesizer(model_client=OpenAI())
+context = ingester.ingest(
     branch_a="branch-a",
     branch_b="branch-b",
     file_path="path/to/file.py",
 )
-
-result = synthesizer.synthesize(context)
+result = synthesizer.synthesize(context=context)
 
 print(result.candidate_code)
 print(result.explanation)
