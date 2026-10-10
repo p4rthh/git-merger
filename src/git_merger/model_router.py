@@ -6,15 +6,22 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass
 class ModelRoute:
+    """Configuration for a model assigned to a particular task."""
+
     model_id: str
     max_tokens: int
     temperature: float
     json_mode: bool
 
 
+# Model configurations from PROJECT_SPEC.md, Section 4.1
 MODEL_ROUTES = {
     "intent_synthesis": ModelRoute(
         model_id="nvidia/nemotron-3-ultra-550b-a55b",
@@ -50,19 +57,16 @@ MODEL_ROUTES = {
 
 
 class ModelRouter:
-    def __init__(self, api_key: str | None = None):
-        """
-        Initialize the Nebius API client.
+    """Route tasks to configured models and call the Nebius API."""
 
-        Reads NEBIUS_API_KEY from the environment unless api_key
-        is explicitly provided.
-        """
+    def __init__(self, api_key: str | None = None):
+        # Use the supplied API key or read it from the environment.
         key = api_key or os.getenv("NEBIUS_API_KEY")
 
         if not key:
             raise ValueError(
-                "NEBIUS_API_KEY is missing. Add it to your .env file "
-                "or set it as an environment variable."
+                "NEBIUS_API_KEY is missing. "
+                "Add it to your .env file or set it as an environment variable."
             )
 
         self.client = OpenAI(
@@ -72,6 +76,7 @@ class ModelRouter:
 
     def route(self, task_type: str) -> ModelRoute:
         """Return the model configuration for a task."""
+
         if task_type not in MODEL_ROUTES:
             available = ", ".join(MODEL_ROUTES.keys())
             raise ValueError(
@@ -87,12 +92,8 @@ class ModelRouter:
         system_prompt: str,
         user_prompt: str,
     ) -> dict:
-        """
-        Call the selected model.
+        """Call the configured model with up to three retries."""
 
-        Retries failed API calls up to 3 times, with exponential
-        backoff delays of 1, 2, and 4 seconds.
-        """
         max_retries = 3
 
         for attempt in range(max_retries + 1):
@@ -135,24 +136,10 @@ class ModelRouter:
                 return {"content": content}
 
             except Exception:
+                # Retry after 1, 2, and 4 seconds.
                 if attempt == max_retries:
                     raise
 
                 time.sleep(2 ** attempt)
 
-        # Defensive fallback; normally unreachable.
         raise RuntimeError("Model call failed unexpectedly.")
-
-    from git_merger.model_router import ModelRouter
-
-router = ModelRouter()
-
-route = router.route("intent_synthesis")
-
-result = router.call(
-    route=route,
-    system_prompt="You are a Python merge-conflict expert.",
-    user_prompt="Return a JSON object with a message field.",
-)
-
-print(result)
