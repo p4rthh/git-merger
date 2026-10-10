@@ -28,6 +28,7 @@ from git_merger.models import (
     ParallelExecutionResult,
     SandboxSpec,
     SandboxStatus,
+    SynthesisResult,
     TestHarness,
 )
 from git_merger.pytest_parser import parse_pytest_output
@@ -37,9 +38,11 @@ from git_merger.sandbox import (
     get_sandbox_provider,
 )
 from git_merger.sandbox_manager import SandboxManager
+from git_merger.synthesizer import SemanticSynthesizer
 
 __all__ = [
     "ContextIngester",
+    "SemanticSynthesizer",
     "BlastRadiusAnalyzer",
     "extract_functions",
     "get_function_source",
@@ -50,6 +53,7 @@ __all__ = [
     "FunctionChange",
     "BranchContext",
     "MergeContext",
+    "SynthesisResult",
     "BlastRadius",
     "AgentState",
     "SandboxStatus",
