@@ -21,10 +21,13 @@ from git_merger.models import (
     FileVersion,
     FunctionChange,
     MergeContext,
+    SynthesisResult,
 )
+from git_merger.synthesizer import SemanticSynthesizer
 
 __all__ = [
     "ContextIngester",
+    "SemanticSynthesizer",
     "BlastRadiusAnalyzer",
     "extract_functions",
     "get_function_source",
@@ -35,6 +38,7 @@ __all__ = [
     "FunctionChange",
     "BranchContext",
     "MergeContext",
+    "SynthesisResult",
     "BlastRadius",
     "GitMergerError",
     "GitError",

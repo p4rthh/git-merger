@@ -24,3 +24,5 @@ build/
 .idea/
 .DS_Store
 *.swp
+
+.env.example
