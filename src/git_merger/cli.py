@@ -1,5 +1,8 @@
 import asyncio
 from importlib import import_module
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 import click
 
