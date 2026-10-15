@@ -271,3 +271,5 @@ class ResolutionReport:
     reason: Optional[str] = None
     partial_candidate: Optional[str] = None
     verdict: Optional[EvaluationVerdict] = None
+    state_history: list[dict[str, Any]] = field(default_factory=list)
+

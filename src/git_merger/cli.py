@@ -36,21 +36,84 @@ def cli():
 @cli.command()
 @click.option(
     "--repo-path",
-    required=True,
+    required=False,
     type=click.Path(exists=True, file_okay=False),
+    help="Path to the Git repository.",
 )
-@click.option("--branch-a", required=True)
-@click.option("--branch-b", required=True)
-@click.option("--file-path", required=True)
-@click.option("--max-iterations", default=5, show_default=True, type=int)
+@click.option("--branch-a", required=False, help="Branch A (ours).")
+@click.option("--branch-b", required=False, help="Branch B (theirs).")
+@click.option("--file-path", required=False, help="Relative file path within the repo.")
+@click.option("--max-iterations", default=5, show_default=True, type=int, help="Max repair iterations.")
+@click.option("--base", required=False, type=click.Path(exists=True), help="Ancestor file (%O in git merge driver).")
+@click.option("--ours", required=False, type=click.Path(exists=True), help="Ours file (%A in git merge driver).")
+@click.option("--theirs", required=False, type=click.Path(exists=True), help="Theirs file (%B in git merge driver).")
+@click.option("--output", required=False, type=click.Path(), help="Output path (defaults to --ours).")
 def resolve(
-    repo_path: str,
-    branch_a: str,
-    branch_b: str,
-    file_path: str,
+    repo_path: str | None,
+    branch_a: str | None,
+    branch_b: str | None,
+    file_path: str | None,
     max_iterations: int,
+    base: str | None,
+    ours: str | None,
+    theirs: str | None,
+    output: str | None,
 ):
-    """Resolve a merge conflict in a file."""
+    """Resolve a merge conflict in a file or via Git custom merge driver."""
+    # Custom Merge Driver Mode (%O %A %B)
+    if base and ours and theirs:
+        from pathlib import Path
+        import sys
+
+        out_file = Path(output) if output else Path(ours)
+        base_file = Path(base)
+        ours_file = Path(ours)
+        theirs_file = Path(theirs)
+
+        click.echo(f"git-merger: Running semantic merge driver on {ours}...")
+        try:
+            base_content = base_file.read_text(encoding="utf-8")
+            ours_content = ours_file.read_text(encoding="utf-8")
+            theirs_content = theirs_file.read_text(encoding="utf-8")
+
+            # Try to invoke synthesizer directly if client available
+            import os
+            from openai import OpenAI
+            from git_merger.models import BranchContext, FileVersion, MergeContext
+            from git_merger.synthesizer import SemanticSynthesizer
+
+            api_key = os.getenv("NEBIUS_API_KEY")
+            if not api_key:
+                click.echo("git-merger: NEBIUS_API_KEY not configured. Falling back to git standard conflict markers.", err=True)
+                sys.exit(1)
+
+            client = OpenAI(base_url="https://api.studio.nebius.ai/v1", api_key=api_key)
+            context = MergeContext(
+                file_path=str(out_file.name),
+                base=FileVersion(content=base_content, commit_hash="base", commit_message="", author="", timestamp=""),
+                ours=BranchContext(file_version=FileVersion(content=ours_content, commit_hash="ours", commit_message="", author="", timestamp=""), commit_log=[], diff_from_base="", changed_functions=[], full_diff_patch=""),
+                theirs=BranchContext(file_version=FileVersion(content=theirs_content, commit_hash="theirs", commit_message="", author="", timestamp=""), commit_log=[], diff_from_base="", changed_functions=[], full_diff_patch=""),
+                conflict_markers=None,
+                ast_diff_summary={},
+                shared_changed_functions=[],
+            )
+
+            synthesizer = SemanticSynthesizer(client)
+            result = synthesizer.synthesize(context)
+            out_file.write_text(result.candidate_code, encoding="utf-8")
+            click.echo(f"git-merger: Successfully resolved and wrote merged code to {out_file}")
+            sys.exit(0)
+        except Exception as exc:
+            click.echo(f"git-merger merge driver failed: {exc}", err=True)
+            sys.exit(1)
+
+    # Repository Branch Mode
+    if not (repo_path and branch_a and branch_b and file_path):
+        raise click.UsageError(
+            "Either specify (--base, --ours, --theirs) for merge driver mode "
+            "or (--repo-path, --branch-a, --branch-b, --file-path) for branch mode."
+        )
+
     resolve_merge_conflict = _load_backend_callable(
         "git_merger.orchestrator", "resolve_merge_conflict"
     )

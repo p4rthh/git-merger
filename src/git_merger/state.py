@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from git_merger.models import ResolutionReport
 
 logger = logging.getLogger("git_merger.state")
 
@@ -133,3 +134,35 @@ class AgentStateMachine:
         logger.info(
             json.dumps(record, separators=(",", ":"), sort_keys=True)
         )
+
+
+class StateLogger:
+    """State transition logger used by the orchestrator."""
+
+    def __init__(self, initial_state: AgentState = AgentState.IDLE) -> None:
+        self.state: AgentState = AgentState(initial_state)
+        self.events: list[dict[str, Any]] = []
+
+    def transition(self, next_state: AgentState | str, reason: str = "") -> AgentState:
+        from_state = self.state
+        if isinstance(next_state, str):
+            try:
+                next_state = AgentState(next_state)
+            except ValueError:
+                next_state = AgentState[next_state]
+
+        self.state = next_state
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "from_state": from_state.value if hasattr(from_state, "value") else str(from_state),
+            "event": reason,
+            "to_state": self.state.value if hasattr(self.state, "value") else str(self.state),
+            "valid": True,
+        }
+        self.events.append(record)
+        logger.info(json.dumps(record, separators=(",", ":"), sort_keys=True))
+        return self.state
+
+    def history(self) -> list[dict[str, Any]]:
+        return [r.copy() for r in self.events]
+

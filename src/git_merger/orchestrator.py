@@ -261,6 +261,21 @@ async def resolve_merge_conflict(
         )
         state_log.transition(AgentState.COMMITTED, "commit_created")
 
+        pr_body = ""
+        try:
+            from git_merger.provenance import ProvenanceReporter
+            reporter = ProvenanceReporter()
+            prov_obj = reporter.build_provenance(
+                file_path=file_path,
+                per_function_provenance=provenance,
+                verdict=verdict,
+                repair_history=repair_history,
+                token_usage=token_budget.summary(),
+            )
+            pr_body = reporter.generate_markdown(prov_obj)
+        except Exception as prov_err:
+            logger.warning("Failed to generate provenance markdown: %s", prov_err)
+
         return ResolutionReport(
             status="success",
             final_candidate=candidate_code,
@@ -269,6 +284,7 @@ async def resolve_merge_conflict(
             repair_history=repair_history,
             total_iterations=len(repair_history),
             token_usage=token_budget.summary(),
+            pr_body=pr_body,
             verdict=verdict,
             state_history=list(state_log.events),
         )

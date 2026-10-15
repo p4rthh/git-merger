@@ -40,6 +40,19 @@ from git_merger.sandbox import (
 from git_merger.sandbox_manager import SandboxManager
 from git_merger.synthesizer import SemanticSynthesizer
 
+from git_merger.demo import run_demo
+from git_merger.provenance import (
+    FunctionProvenance,
+    ProvenanceLine,
+    ProvenanceReporter,
+    ResolutionProvenance,
+)
+from git_merger.pruner import (
+    AdaptiveTestPruner,
+    PruningDecision,
+    TokenBudgetController,
+)
+
 __all__ = [
     "ContextIngester",
     "SemanticSynthesizer",
@@ -72,4 +85,12 @@ __all__ = [
     "GitError",
     "IngestionError",
     "ASTAnalysisError",
+    "ProvenanceReporter",
+    "ResolutionProvenance",
+    "FunctionProvenance",
+    "ProvenanceLine",
+    "AdaptiveTestPruner",
+    "PruningDecision",
+    "TokenBudgetController",
+    "run_demo",
 ]

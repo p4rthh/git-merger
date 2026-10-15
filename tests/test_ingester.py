@@ -285,11 +285,17 @@ def test_ingester_error_handling(git_test_repo):
 # 6. Property-Based Testing with Hypothesis
 # =========================================================================
 
+import keyword
 from hypothesis import given, strategies as st
 
 @given(
-    fn_name=st.from_regex(r"^[a-z][a-z0-9_]{0,10}$", fullmatch=True),
-    args=st.lists(st.from_regex(r"^[a-z][a-z0-9_]{0,10}$", fullmatch=True), min_size=0, max_size=4, unique=True),
+    fn_name=st.from_regex(r"^[a-z][a-z0-9_]{0,10}$", fullmatch=True).filter(lambda x: not keyword.iskeyword(x)),
+    args=st.lists(
+        st.from_regex(r"^[a-z][a-z0-9_]{0,10}$", fullmatch=True).filter(lambda x: not keyword.iskeyword(x)),
+        min_size=0,
+        max_size=4,
+        unique=True,
+    ),
 )
 def test_hypothesis_function_signature_extraction(fn_name, args):
     """Property-based test: function extraction and signature parsing for arbitrary valid signatures."""

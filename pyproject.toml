@@ -18,6 +18,9 @@ dependencies = [
     "openai>=1.0.0",
 ]
 
+[project.scripts]
+git-merger = "git_merger.cli:cli"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
